@@ -1,0 +1,26 @@
+# Core dependencies
+pandas>=1.5.0
+numpy>=1.24.0
+pyyaml>=6.0
+
+# Database
+duckdb>=0.8.0
+
+# Vector store and embeddings
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# AI and LLM
+openai>=1.0.0
+langchain>=0.0.300
+
+# UI (optional)
+gradio>=3.40.0
+
+# PDF generation (optional)
+fpdf2>=2.7.0
+reportlab>=4.0.0
+
+# Development
+jupyter>=1.0.0
+pytest>=7.0.0
