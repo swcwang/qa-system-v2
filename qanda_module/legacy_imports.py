@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from chromadb import PersistentClient
-#from langchain_community.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain_openai import ChatOpenAI 
 from langchain.chains import RetrievalQA
 from langchain.schema import Document
@@ -95,10 +95,14 @@ class ChromaManualRetriever(BaseRetriever):
             n_results=self.k,
             include=["documents", "metadatas"],
         )
-        return [
-            Document(page_content=text, metadata=meta)
-            for text, meta in zip(results["documents"][0], results["metadatas"][0])
-        ]
+        # NEW: Add episode ID prefixes to content
+        enhanced_docs = []
+        for text, meta in zip(results["documents"][0], results["metadatas"][0]):
+            episode_id = meta.get('episode_id', 'Unknown')
+            prefixed_content = f"[Episode ID: {episode_id}] {text}"
+            enhanced_docs.append(Document(page_content=prefixed_content, metadata=meta))
+        
+        return enhanced_docs
 
     async def _aget_relevant_documents(self, query: str) -> List[Document]:
         """Async version of _get_relevant_documents."""
