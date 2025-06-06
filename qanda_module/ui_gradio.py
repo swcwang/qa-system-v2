@@ -350,10 +350,14 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
     def clear_all():
         """Clear all selections."""
         return (
-            "", "*Select a panelist to see their episodes*", "**Popular Topics**", 
-            gr.update(choices=POPULAR_TOPICS, value=None), "", 
-            format_selection_display(panelist_lookup=panelist_lookup), 
-            gr.update(choices=generate_smart_questions(), value=None), "", "Cleared"
+            "",  # current_panelist
+            "*Select a panelist to see their episodes*",  # episodes_display
+            "",  # current_topic
+            "**Current Focus:** None selected",  # current_selection
+            gr.update(choices=POPULAR_TOPICS, value=None),  # topic_radio
+            gr.update(choices=generate_smart_questions(), value=None),  # sample_questions
+            "",  # question
+            "Cleared"  # status_display
         )
 
     def clear_question_only():
@@ -447,7 +451,7 @@ def wire_ui_events(components: dict, handlers: dict):
     clear_btn.click(
         handlers['clear_all'], 
         outputs=[current_panelist, episodes_display, current_topic, current_selection, 
-                sample_questions, question, status_display]
+                topic_radio, sample_questions, question, status_display]
     )
     
     ask_btn.click(
