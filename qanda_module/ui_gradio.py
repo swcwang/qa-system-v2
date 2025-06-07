@@ -907,6 +907,10 @@ def launch_ui_with_toggle(helpers, qa_chain, config, design: str = "current") ->
     ui_data = prepare_ui_data(helpers, config)
     print(f"✅ UI data prepared: {len(ui_data['panelist_list'])} panelists loaded")
     
+    # Ensure helpers has the required attributes
+    helpers.panelist_lookup = ui_data['panelist_lookup']
+    helpers.con = ui_data['con']
+    
     if design == "new":
         demo = create_semantic_ui(helpers, qa_chain, config)  
         print("✅ New semantic UI created")

@@ -13,8 +13,19 @@ data/
 *.duckdb
 *.db
 
-# Jupyter
+# Jupyter & Development
 .ipynb_checkpoints/
+
+# Development files
+temp.py                   # ADD: Temporary files
+
+# Package management
+uv.lock                   # ADD: UV lock file
+.python-version          # ADD: Python version file
+
+# Model cache (sentence transformers)
+.cache/                   # ADD: Model cache
+sentence_transformers/    # ADD: Model downloads
 
 # IDE
 .vscode/
@@ -31,3 +42,12 @@ Thumbs.db
 
 # Environment variables
 .env
+.env.local               # ADD: Local env files
+
+# PyTorch/ML
+*.pt
+*.pth
+*.ckpt
+
+# Add this line to your .gitignore:
+.gradio/
