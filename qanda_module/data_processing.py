@@ -166,7 +166,10 @@ def get_semantic_topic_matches(helpers, panelist_name: str, embedder,
         if profile_embedding.shape[1] == 0 or topic_embeddings.shape[1] == 0:
             return POPULAR_TOPICS
         
-        similarities = cosine_similarity(profile_embedding, topic_embeddings)[0]
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=RuntimeWarning, module='sklearn')
+            similarities = cosine_similarity(profile_embedding, topic_embeddings)[0]
         
         # Filter and sort by similarity
         valid_similarities = [

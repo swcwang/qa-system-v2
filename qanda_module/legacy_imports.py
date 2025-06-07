@@ -160,6 +160,8 @@ class ImprovedQAHelpers:
         """Helper to get episode ID from label."""
         return self.episode_lookup.get(ep_label)
 
+
+
     def get_panellists_by_episode(self, ep_label):
         """Get list of panellists for an episode, focusing on speaker_type=3 with valid IDs."""
         print(f"DEBUG: get_panellists_by_episode called with ep_label={ep_label}")

@@ -114,7 +114,7 @@ def format_response_with_episode_links(ai_response, con, helpers):
         if episode_id in episode_to_ref:
             pattern = f"Episode ID: {episode_id}"
             ref_num = episode_to_ref[episode_id]
-            replacement = f'<sup><span style="color: #dc2626;">[{ref_num}]</span></sup>'
+            replacement = f'<sup><span style="color: #dc2626;">{ref_num}</span></sup>'
             formatted_response = formatted_response.replace(pattern, replacement, 1)
     
     # Remove AI's "Sources Used:" section if present

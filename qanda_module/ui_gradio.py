@@ -118,37 +118,6 @@ def format_selection_display(panelist: str = "", topic: str = "",
     
     return "**Current Focus:** " + " + ".join(parts)
 
-def get_panelist_episodes(helpers, panelist_name: str) -> str:
-    """
-    Get episodes for selected panelist in formatted display.
-    
-    Args:
-        helpers: QAHelpers object
-        panelist_name: Name of panelist
-        
-    Returns:
-        Formatted episode list
-    """
-    if not panelist_name:
-        return "*Select a panelist to see their episodes*"
-    
-    try:
-        episodes = helpers.df_reply[
-            (helpers.df_reply["speaker_name"] == panelist_name) & 
-            (helpers.df_reply["speaker_type"] == 3)
-        ].merge(helpers.df_ep, left_on="episode_id", right_on="id")["ep_label"].unique()
-        
-        if len(episodes) == 0:
-            return f"*No episodes found for {panelist_name}*"
-        
-        # Sort and format
-        sorted_episodes = sorted(episodes, reverse=True)
-        header = f"**{panelist_name} appeared in {len(episodes)} episodes:**\n\n"
-        episode_list = "\n".join([f"• {ep}" for ep in sorted_episodes])
-        
-        return header + episode_list
-    except Exception as e:
-        return f"*Error loading episodes: {str(e)}*"
 
 
 def handle_question(question: str, k_value: int, style: str, 
@@ -275,7 +244,38 @@ def create_episode_scroller(helpers):
     </style>
     """)
 
-
+def get_panelist_episodes(helpers, panelist_name: str) -> str:
+    """
+    Get episodes for selected panelist in formatted display.
+    
+    Args:
+        helpers: QAHelpers object
+        panelist_name: Name of panelist
+        
+    Returns:
+        Formatted episode list
+    """
+    if not panelist_name:
+        return "*Select a panelist to see their episodes*"
+    
+    try:
+        episodes = helpers.df_reply[
+            (helpers.df_reply["speaker_name"] == panelist_name) & 
+            (helpers.df_reply["speaker_type"] == 3)
+        ].merge(helpers.df_ep, left_on="episode_id", right_on="id")["ep_label"].unique()
+        
+        if len(episodes) == 0:
+            return f"*No episodes found for {panelist_name}*"
+        
+        # Sort and format
+        sorted_episodes = sorted(episodes, reverse=True)
+        header = f"**{panelist_name} appeared in {len(episodes)} episodes:**\n\n"
+        episode_list = "\n".join([f"• {ep}" for ep in sorted_episodes])
+        
+        return header + episode_list
+    except Exception as e:
+        return f"*Error loading episodes: {str(e)}*"
+        
 def create_event_handlers(helpers, qa_chain, config, embedder):
     """
     Create event handler functions with proper closures.
@@ -306,7 +306,11 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
                 episodes_data = helpers.df_reply[
                     (helpers.df_reply["speaker_name"] == clean_panelist) & 
                     (helpers.df_reply["speaker_type"] == 3)
-                ].merge(helpers.df_ep, left_on="episode_id", right_on="id")
+                ][['episode_id', 'speaker_name', 'speaker_type']].merge(
+                    helpers.df_ep[['id', 'date', 'title', 'url', 'ep_label']], 
+                    left_on="episode_id", 
+                    right_on="id"
+                )
                 
                 if not episodes_data.empty:
                     latest_date = episodes_data["date"].max()
