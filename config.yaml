@@ -2,7 +2,7 @@
 
 # Vector store settings
 embedding_model_name: "BAAI/bge-large-en-v1.5"
-chroma_path: "../data/chroma_db_hf_may"
+chroma_path: "./data/chroma_db_hf_may"
 collection_name: "qa_chunks"
 n_chunks_to_retrieve_k: 20
 
