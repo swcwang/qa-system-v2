@@ -40,5 +40,6 @@ def create_demo():
 # Create the demo
 demo = create_demo()
 
-# For Hugging Face Spaces, we don't need to call demo.launch()
-# The space will handle that automatically 
+# Launch for HF Spaces
+if __name__ == "__main__":
+    demo.launch()
