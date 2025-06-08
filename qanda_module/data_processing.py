@@ -242,30 +242,17 @@ def enhanced_build_panelist_list(helpers) -> List[str]:
 
 
 def prepare_ui_data(helpers, config):
-    """
-    Prepare all data needed for UI initialization.
-    
-    Args:
-        helpers: QAHelpers object
-        config: System configuration
-        
-    Returns:
-        Dict with all prepared data
-    """
-    # Get database connection
+    """Prepare all data needed for UI initialization."""
     import duckdb
     con = duckdb.connect(config.duck_db_name)
     
-    # Get panelist data
-    panelist_lookup = get_latest_panelist_data(con)
+    # DON'T overwrite the existing good panelist_lookup
+    # helpers.panelist_lookup is already set correctly in legacy_imports.py
     panelist_list = enhanced_build_panelist_list(helpers)
-    
-    # Attach to helpers for backwards compatibility
-    helpers.panelist_lookup = panelist_lookup
     helpers.con = con
     
     return {
-        'panelist_lookup': panelist_lookup,
+        'panelist_lookup': helpers.panelist_lookup,  # Use existing good data
         'panelist_list': panelist_list,
         'con': con
     }

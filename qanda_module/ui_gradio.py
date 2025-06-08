@@ -315,16 +315,17 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
                 if not episodes_data.empty:
                     latest_date = episodes_data["date"].max()
                     # Create temporary lookup with date for display
-                    if clean_panelist in panelist_lookup:
-                        profession, url = panelist_lookup[clean_panelist]
+                    matching_key = None
+                    for key in panelist_lookup.keys():
+                        if key.upper() == clean_panelist.upper():
+                            matching_key = key
+                            break
+                    
+                    if matching_key:
+                        profession, url = panelist_lookup[matching_key]
                         temp_lookup = {clean_panelist: (profession, url, latest_date)}
                     else:
                         temp_lookup = {clean_panelist: ("Panelist", None, latest_date)}
-                        
-                    # Add scroll to top for episodes display
-                    episodes_text = f'<script>setTimeout(() => {{const elem = document.querySelector("#episodes-display textarea"); if(elem) elem.scrollTop = 0;}}, 100);</script>\n{episodes_text}'
-                else:
-                    temp_lookup = panelist_lookup
             except Exception as e:
                 print(f"Error getting latest date: {e}")
                 temp_lookup = panelist_lookup

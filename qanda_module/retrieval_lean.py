@@ -163,16 +163,17 @@ def process_question_with_style(helpers, qa_chain, query: str, k: int, style: st
         docs = retrieve_enhanced_documents(qa_chain.retriever, query, k, config.debug_enabled)
         response = generate_ai_response(docs, query, style, config)
         
-        # Format with episode links AND panelist links
-        con = getattr(helpers, 'con', None)
-        if con:
-            formatted_response = format_response_with_episode_links(response, con, helpers)  # Pass helpers
+        # USE HELPERS METHOD FOR PANELIST LINKS
+        if hasattr(helpers, 'format_response_with_links'):
+            print("🔍 DEBUG: Using helpers.format_response_with_links")
+            formatted_response, sources = helpers.format_response_with_links(response, docs)
         else:
-            formatted_response = response
+            print("🔍 DEBUG: Fallback to episode-only linking")
+            con = getattr(helpers, 'con', None)
+            formatted_response = format_response_with_episode_links(response, con, helpers) if con else response
+            sources = ""
         
-        sources = ""
         tech_info = f"Model: {config.chat_model_name}, Temp: {config.temperature}"
-        
         return formatted_response, sources, "✅ Completed!", None, tech_info
         
     except Exception as e:

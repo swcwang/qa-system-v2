@@ -136,7 +136,16 @@ class ImprovedQAHelpers:
         if "link" in self.df_guests.columns:  # Changed from "url" to "link"
             # Only include non-null links
             valid_links = self.df_guests[~self.df_guests["link"].isna()]
-            self.name_to_url = dict(zip(valid_links["name"], valid_links["link"]))
+            for _, row in valid_links.iterrows():
+                name = row["name"]
+                url = row["link"]
+                if name and name.strip():
+                    self.name_to_url[name.strip().upper()] = {
+                        'original': name.strip(),
+                        'url': url
+                    }
+            
+
             print(f"Loaded {len(self.name_to_url)} panelist profile URLs")
         else:
             print(
@@ -155,6 +164,20 @@ class ImprovedQAHelpers:
             (self.df_reply["speaker_type"] == 3) & (self.df_reply["speaker_id"].isna())
         ].shape[0]
         print(f"Panellist responses with missing speaker_id: {missing_sid}")
+
+        self.panelist_lookup = {}
+        if "link" in self.df_guests.columns:
+            for _, row in self.df_guests.iterrows():
+                name = row["name"]
+                profession = row.get("profession", "Politician")  
+                url = row["link"]
+                if pd.notna(name) and name.strip():
+                    # Store as tuple for UI: (profession, url)
+                    self.panelist_lookup[name.strip()] = (
+                        profession if pd.notna(profession) else "Politician",
+                        url if pd.notna(url) else None
+                    )
+            print(f"Created panelist_lookup with {len(self.panelist_lookup)} entries for UI display")
 
     def get_episode_id(self, ep_label):
         """Helper to get episode ID from label."""
@@ -282,12 +305,6 @@ class ImprovedQAHelpers:
         # Debug: Check if name_to_url is populated
         print(f"Total panelist URLs available: {len(self.name_to_url)}")
 
-        # Create case-insensitive URL mapping
-        case_insensitive_lookup = {}
-        for name, url in self.name_to_url.items():
-            if url:  # Only include if URL exists
-                case_insensitive_lookup[name.upper()] = (name, url)
-
         # Track what we've already linked to avoid double-linking
         already_linked = set()
 
@@ -299,8 +316,12 @@ class ImprovedQAHelpers:
 
             # Try case-insensitive matching using the original speaker name
             upper_speaker = original_speaker.upper()
-            if upper_speaker in case_insensitive_lookup:
-                original_name, profile_url = case_insensitive_lookup[upper_speaker]
+            if upper_speaker in self.name_to_url:
+                info = self.name_to_url[upper_speaker]
+                original_name = info['original']
+                profile_url = info['url']
+
+                
                 print(
                     f"Found URL for {original_speaker} via {original_name}: {profile_url}"
                 )
@@ -399,8 +420,58 @@ class ImprovedQAHelpers:
 
         # Use smaller font for sources and proper line breaks
         source_md = (
-            "*Sources:*<br>" + "<br>".join(episode_links) if episode_links else ""
+            "<br>".join(episode_links) if episode_links else ""
         )
 
         return full_answer, source_md
 
+def identify_relevant_episodes(full_answer, docs):
+    """Identify which episodes were actually referenced in the answer."""
+    import re
+    
+    # Get all episodes from docs
+    all_episodes = {}
+    for doc in docs:
+        title = doc.metadata.get("title", "")
+        date = doc.metadata.get("episode_date", "")
+        speaker = doc.metadata.get("speaker_name", "")
+        
+        if title and title not in all_episodes:
+            all_episodes[title] = {
+                "title": title,
+                "date": date,
+                "speakers": set()
+            }
+        if speaker:
+            all_episodes[title]["speakers"].add(speaker)
+    
+    # Smart filtering - only include episodes that are actually mentioned
+    relevant_episodes = []
+    
+    for title, info in all_episodes.items():
+        include_episode = False
+        
+        # Check if any speaker from this episode is mentioned in the answer
+        for speaker in info["speakers"]:
+            if re.search(rf'\b{re.escape(speaker)}\b', full_answer, re.IGNORECASE):
+                include_episode = True
+                break
+        
+        # Check if episode date is mentioned
+        if info["date"] and info["date"] in full_answer:
+            include_episode = True
+            
+        if include_episode:
+            relevant_episodes.append({
+                "title": info["title"],
+                "date": info["date"]
+            })
+    
+    # Fallback: if no episodes identified, return the most recent 3
+    if not relevant_episodes:
+        sorted_episodes = sorted(all_episodes.values(), 
+                               key=lambda x: x.get("date", ""), reverse=True)
+        relevant_episodes = [{"title": ep["title"], "date": ep["date"]} 
+                           for ep in sorted_episodes[:3]]
+    
+    return relevant_episodes
