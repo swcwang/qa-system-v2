@@ -60,3 +60,6 @@ tests/
 .gradio/
 # Don't track the active .gitignore (it's just a copy of templates)
 .gitignore
+
+# Don't track the working .gitignore file
+.gitignore
