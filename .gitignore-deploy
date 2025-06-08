@@ -13,7 +13,7 @@ data/
 *.duckdb
 *.db
 
-# Jupyter checkpoints only
+# Jupyter & Development
 .ipynb_checkpoints/
 
 # Development files
@@ -28,12 +28,35 @@ sentence_transformers/
 # IDE
 .vscode/
 .cursor/
+*.swp
+*.swo
 
 # OS
 .DS_Store
-.env
+Thumbs.db
 
 # Logs
 *.log
+
+# Environment variables
+.env
+.env.local
+
+# PyTorch/ML
+*.pt
+*.pth
+*.ckpt
+
+.gradio/
+
+# Deploy branch restrictions
+*.ipynb
+notebooks/
+test_app.py
+requirements_backup.txt
+main.py
+tests/
 # Gradio runtime files
 .gradio/
+# Don't track the active .gitignore (it's just a copy of templates)
+.gitignore

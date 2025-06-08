@@ -37,3 +37,5 @@ sentence_transformers/
 *.log
 # Gradio runtime files
 .gradio/
+# Don't track the active .gitignore (it's just a copy of templates)
+.gitignore
