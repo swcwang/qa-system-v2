@@ -17,15 +17,13 @@ data/
 .ipynb_checkpoints/
 
 # Development files
-temp.py                   # ADD: Temporary files
+temp.py
+uv.lock
+.python-version
 
-# Package management
-uv.lock                   # ADD: UV lock file
-.python-version          # ADD: Python version file
-
-# Model cache (sentence transformers)
-.cache/                   # ADD: Model cache
-sentence_transformers/    # ADD: Model downloads
+# Model cache
+.cache/
+sentence_transformers/
 
 # IDE
 .vscode/
@@ -42,15 +40,15 @@ Thumbs.db
 
 # Environment variables
 .env
-.env.local               # ADD: Local env files
+.env.local
 
 # PyTorch/ML
 *.pt
 *.pth
 *.ckpt
 
-# Add this line to your .gitignore:
 .gradio/
+
 # Deploy branch restrictions
 *.ipynb
 notebooks/
@@ -58,3 +56,8 @@ test_app.py
 requirements_backup.txt
 main.py
 tests/
+# Gradio runtime files
+.gradio/
+# Don't track the active .gitignore (it's just a copy of templates)
+
+# Don't track the working .gitignore file
