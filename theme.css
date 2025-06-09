@@ -1,0 +1,81 @@
+/* Q+A Voices: Brand Stylesheet */
+
+/* 1. Color Palette & Fonts
+-------------------------------------------------- */
+:root {
+    /* Official Color Palette */
+    --primary-color: #800000; /* Deep Burgundy */
+    --secondary-color: #36454F; /* Charcoal Grey */
+    --accent-color: #f59e0b; /* Warm Gold/Amber */
+    
+    /* Neutral & UI Tones */
+    --background-color: #f8f9fa;
+    --surface-color: #ffffff; /* For cards */
+    --text-color: var(--secondary-color);
+    --text-color-light: #6b7280;
+    --border-color: #e5e7eb;
+
+    /* Primary Font */
+    --font-family-sans: 'Inter', sans-serif;
+}
+
+/* 2. Base & Typography
+-------------------------------------------------- */
+body {
+    font-family: var(--font-family-sans);
+    color: var(--text-color);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    color: var(--secondary-color);
+}
+
+/* 3. SVG Logo
+   To use this, add a gr.HTML('<div class="qa-logo-container"><div class="qa-logo"></div></div>') 
+   at the top of your Gradio UI, inside a gr.Row with your main title.
+-------------------------------------------------- */
+.qa-logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 15px;
+}
+.qa-logo {
+    width: 40px;
+    height: 40px;
+    background-color: var(--primary-color) !important; /* Added !important */
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M11.73,19.06C11.37,19.64 10.74,20 10,20C8.9,20 8,19.1 8,18C8,17.39 8.28,16.85 8.71,16.5C9.89,15.76 11.2,15.39 12.5,15.39C14.72,15.39 16.5,16.08 16.5,17.75C16.5,18.92 15.44,19.82 14.1,20.06L15.1,22H9L7.86,19.45C6.72,18.59 6,17.4 6,16C6,13.24 9.24,11 13,11C16.76,11 20,13.24 20,16C20,18.42 17.5,20.12 15,20.66V22H13V20.35C12.37,20.25 11.79,20.06 11.25,19.82L11.73,19.06M13,3C8.03,3 4,7.03 4,12C4,16.97 8.03,21 13,21C13.34,21 13.67,20.97 14,20.92C13.97,20.64 14,20.33 14.03,20H13C8.58,20 5,16.42 5,12C5,7.58 8.58,4 13,4C17.42,4 21,7.58 21,12C21,12.34 20.97,12.67 20.92,13C20.64,13.03 20.33,13 20,13.03V12C20,7.03 16.97,3 13,3Z' /%3E%3C/svg%3E") no-repeat center;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M11.73,19.06C11.37,19.64 10.74,20 10,20C8.9,20 8,19.1 8,18C8,17.39 8.28,16.85 8.71,16.5C9.89,15.76 11.2,15.39 12.5,15.39C14.72,15.39 16.5,16.08 16.5,17.75C16.5,18.92 15.44,19.82 14.1,20.06L15.1,22H9L7.86,19.45C6.72,18.59 6,17.4 6,16C6,13.24 9.24,11 13,11C16.76,11 20,13.24 20,16C20,18.42 17.5,20.12 15,20.66V22H13V20.35C12.37,20.25 11.79,20.06 11.25,19.82L11.73,19.06M13,3C8.03,3 4,7.03 4,12C4,16.97 8.03,21 13,21C13.34,21 13.67,20.97 14,20.92C13.97,20.64 14,20.33 14.03,20H13C8.58,20 5,16.42 5,12C5,7.58 8.58,4 13,4C17.42,4 21,7.58 21,12C21,12.34 20.97,12.67 20.92,13C20.64,13.03 20.33,13 20,13.03V12C20,7.03 16.97,3 13,3Z' /%3E%3C/svg%3E") no-repeat center;
+}
+
+/* 4. Gradio Component Overrides
+   These selectors are more specific to override Gradio's default theme.
+-------------------------------------------------- */
+
+/* Primary Button Style */
+.button-primary.gradio-button {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.button-primary.gradio-button:hover {
+    background: #660000 !important; /* Darker Burgundy */
+}
+
+/* Secondary/Helper Button Style */
+.button-secondary.gradio-button {
+    background: rgba(128, 0, 0, 0.1) !important;
+    color: var(--primary-color) !important;
+    border: 1px solid rgba(128, 0, 0, 0.2) !important;
+}
+.button-secondary.gradio-button:hover {
+    background: rgba(128, 0, 0, 0.2) !important;
+}
+
+/* Focus rings with gold accent */
+.gradio-textbox textarea:focus, .gradio-dropdown input:focus {
+    box-shadow: 0 0 0 2px var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+}

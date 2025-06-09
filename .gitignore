@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Data files
+data/
+*.duckdb
+*.db
+
+# Jupyter checkpoints only
+.ipynb_checkpoints/
+
+# Development files
+temp.py
+uv.lock
+.python-version
+
+# Model cache
+.cache/
+sentence_transformers/
+
+# IDE
+.vscode/
+.cursor/
+
+# OS
+.DS_Store
+.env
+
+# Logs
+*.log
+# Gradio runtime files
+.gradio/
+# Don't track the active .gitignore (it's just a copy of templates)
+
+# Don't track the working .gitignore file
