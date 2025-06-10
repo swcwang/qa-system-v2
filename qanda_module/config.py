@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 class QAConfig:
     """Simple configuration class."""
     
+    ui_theme: str = "soft"
     # Vector store
-    embedding_model_name: str = "BAAI/bge-large-en-v1.5"
-    chroma_path: str = "./data/chroma_db_hf_may" # "./data/chroma_db_large"
-    collection_name: str = "qa_chunks" #"qa_chunks_v2"
+    embedding_model_name: str = "BAAI/bge-small-en-v1.5"
+    chroma_path: str = "./data/chroma_db_mid_june9" # "./data/chroma_db_large"
+    collection_name: str = "qa_optimized" #"qa_chunks" #"qa_chunks_v2"
     n_chunks_to_retrieve_k: int = 20
     
     # AI settings
@@ -31,7 +32,7 @@ class QAConfig:
     max_results: int = 15
     
     # Data paths
-    duck_db_name: str = "./data/qanda_may.duckdb" #"./data/qanda_v2.duckdb"
+    duck_db_name: str = "./data/qanda_mid_june9.duckdb" #"./data/qanda_may.duckdb" #"./data/qanda_v2.duckdb"
     input_json_path: str = "./data/input_json2"
     
     # Debug

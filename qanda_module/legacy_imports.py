@@ -98,6 +98,8 @@ class ChromaManualRetriever(BaseRetriever):
         # NEW: Add episode ID prefixes to content
         enhanced_docs = []
         for text, meta in zip(results["documents"][0], results["metadatas"][0]):
+            if "episode_title" in meta and "title" not in meta:
+                meta["title"] = meta["episode_title"]             
             episode_id = meta.get('episode_id', 'Unknown')
             prefixed_content = f"[Episode ID: {episode_id}] {text}"
             enhanced_docs.append(Document(page_content=prefixed_content, metadata=meta))
@@ -289,28 +291,56 @@ class ImprovedQAHelpers:
         return sorted(panellists)
 
     def format_response_with_links(self, full_answer, docs):
-        """Format response with hyperlinks using case-insensitive matching."""
-        # First, collect all unique speakers in the results
-        # Store both original case and title case versions
-        speakers_in_results = {}  # Maps normalized name -> original name from docs
+        """
+        Format response with hyperlinks and numbered citations.
+        Combines sophisticated panelist linking with numbered episode citations.
+        """
+        import re
+        
+        # ========================
+        # STAGE 1: NUMBERED CITATIONS
+        # ========================
+        # Extract episode IDs and create sequential mapping
+        episode_ids = re.findall(r'Episode ID: (\d+)', full_answer)
+        episode_to_ref = {}
+        unique_episodes = []
+        
+        for episode_id in episode_ids:
+            if episode_id not in episode_to_ref:
+                ref_num = len(unique_episodes) + 1
+                episode_to_ref[episode_id] = ref_num
+                unique_episodes.append(episode_id)
+        
+        # Replace episode IDs with numbered superscript citations
+        for episode_id in episode_ids:
+            if episode_id in episode_to_ref:
+                pattern = f"Episode ID: {episode_id}"
+                ref_num = episode_to_ref[episode_id]
+                replacement = f'<sup>[{ref_num}]</sup>'
+                full_answer = full_answer.replace(pattern, replacement, 1)
+        
+        # Remove any remaining "Sources Used:" sections from AI
+        full_answer = re.sub(r'\*\*Sources Used:\*\*.*$', '', full_answer, flags=re.DOTALL).strip()
+        
+        # ========================
+        # STAGE 2: PANELIST LINKING 
+        # ========================
+        # Collect all unique speakers in the results
+        speakers_in_results = {}
         for doc in docs:
             speaker_name = doc.metadata.get("speaker_name")
             if speaker_name:
-                # Store with title case as key for better matching
                 normalized = speaker_name.title()
                 speakers_in_results[normalized] = speaker_name
 
         print(f"Speakers found in results: {speakers_in_results}")
-
-        # Debug: Check if name_to_url is populated
         print(f"Total panelist URLs available: {len(self.name_to_url)}")
 
-        # Track what we've already linked to avoid double-linking
+        # Track what we've already linked
         already_linked = set()
 
         # Add hyperlinks for panellist names using case-insensitive matching
         for normalized_speaker, original_speaker in speakers_in_results.items():
-            # Skip if we've already linked this speaker
             if normalized_speaker.upper() in already_linked:
                 continue
 
@@ -321,13 +351,9 @@ class ImprovedQAHelpers:
                 original_name = info['original']
                 profile_url = info['url']
 
-                
-                print(
-                    f"Found URL for {original_speaker} via {original_name}: {profile_url}"
-                )
+                print(f"Found URL for {original_speaker} via {original_name}: {profile_url}")
 
                 # Try multiple patterns to match how the AI might format names
-                # Use the normalized (title case) version for matching in text
                 patterns_to_try = [
                     # Pattern 1: Bold markdown (e.g., **Matt Canavan**)
                     (
@@ -354,13 +380,11 @@ class ImprovedQAHelpers:
                 # Try each pattern
                 replacement_made = False
                 for pattern, replacement in patterns_to_try:
-                    # Count occurrences before replacement
                     matches_before = len(
                         re.findall(pattern, full_answer, re.IGNORECASE | re.MULTILINE)
                     )
 
                     if matches_before > 0:
-                        # Make the replacement (only first occurrence to avoid over-linking)
                         full_answer = re.sub(
                             pattern,
                             replacement,
@@ -368,62 +392,65 @@ class ImprovedQAHelpers:
                             count=1,  # Only replace first occurrence
                             flags=re.IGNORECASE | re.MULTILINE,
                         )
-                        print(
-                            f"  → Replaced {normalized_speaker} using pattern: {pattern[:30]}..."
-                        )
+                        print(f"  → Replaced {normalized_speaker} using pattern: {pattern[:30]}...")
                         replacement_made = True
                         already_linked.add(normalized_speaker.upper())
                         break
 
                 if not replacement_made:
-                    print(
-                        f"  → WARNING: Could not find {normalized_speaker} in text with any pattern"
-                    )
-                    # Debug: Show where this name appears in the text
-                    if normalized_speaker.lower() in full_answer.lower():
-                        # Find the context where the name appears
-                        for match in re.finditer(
-                            re.escape(normalized_speaker), full_answer, re.IGNORECASE
-                        ):
-                            start = max(0, match.start() - 20)
-                            end = min(len(full_answer), match.end() + 20)
-                            context = full_answer[start:end]
-                            print(f"    Found at: ...{context}...")
+                    print(f"  → WARNING: Could not find {normalized_speaker} in text with any pattern")
             else:
                 print(f"No URL found for {original_speaker}")
 
-        # Add episode links with date information
-        # seen_titles = set()
-        episode_links = []
-
+        # ========================
+        # STAGE 3: EPISODE SOURCES
+        # ========================
         # Use smart filtering to show only relevant episodes
         episodes_mentioned = identify_relevant_episodes(full_answer, docs)
 
-        # for doc in docs:
-        #     title = doc.metadata.get("title")
-        #     date = doc.metadata.get("episode_date", "")
-        #     if title and title not in seen_titles:
-        #         seen_titles.add(title)
-        #         url = self.episode_url_lookup.get(title)
-        #         if url:
-        #             episode_links.append(f"- [{date} — {title}]({url})")
+        # Build numbered source list matching the citations
+        episode_links = []
+        
+        if unique_episodes and episode_to_ref:
+            # Create episode details lookup from docs
+            episode_details = {}
+            for doc in docs:
+                eid = doc.metadata.get('episode_id', '')
+                if str(eid) in unique_episodes:
+                    # Handle both old and new metadata field names
+                    title = doc.metadata.get("episode_title") or doc.metadata.get("title", "")
+                    date = doc.metadata.get("episode_date", "")
+                    if title:
+                        episode_details[str(eid)] = {'title': title, 'date': date}
+            
+            # Build numbered source links matching citation order
+            for episode_id in unique_episodes:
+                if episode_id in episode_details:
+                    ref_num = episode_to_ref[episode_id]
+                    details = episode_details[episode_id]
+                    title = details['title']
+                    date = details['date']
+                    
+                    url = self.episode_url_lookup.get(title)
+                    if url:
+                        episode_links.append(f"{ref_num}. [{date}: {title}]({url})")
+                    else:
+                        episode_links.append(f"{ref_num}. {date}: {title}")
+        else:
+            # Fallback: use smart episode filtering for non-cited episodes
+            for episode_info in episodes_mentioned:
+                title = episode_info["title"]
+                date = episode_info["date"]
+                url = self.episode_url_lookup.get(title)
+                if url:
+                    episode_links.append(f"- [{date} — {title}]({url})")
+                else:
+                    episode_links.append(f"- {date} — {title}")
 
-        for episode_info in episodes_mentioned:
-            title = episode_info["title"]
-            date = episode_info["date"]
-            url = self.episode_url_lookup.get(title)
-            if url:
-                episode_links.append(f"- [{date} — {title}]({url})")
-            else:
-                # Still show the episode even if we don't have a URL
-                episode_links.append(f"- {date} — {title}")
+        # Format sources for display
+        source_md = "<br>".join(episode_links) if episode_links else ""
 
-        # Use smaller font for sources and proper line breaks
-        source_md = (
-            "<br>".join(episode_links) if episode_links else ""
-        )
-
-        return full_answer, source_md
+        return full_answer, source_md    
 
 def identify_relevant_episodes(full_answer, docs):
     """Identify which episodes were actually referenced in the answer."""
@@ -432,7 +459,7 @@ def identify_relevant_episodes(full_answer, docs):
     # Get all episodes from docs
     all_episodes = {}
     for doc in docs:
-        title = doc.metadata.get("title", "")
+        title = doc.metadata.get("episode_title") or doc.metadata.get("title", "")
         date = doc.metadata.get("episode_date", "")
         speaker = doc.metadata.get("speaker_name", "")
         

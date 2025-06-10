@@ -5,6 +5,7 @@ This module decouples the theme definition from the UI layout code.
 
 from gradio.themes import Soft
 from gradio.themes.utils import colors, fonts, sizes
+from .theme import qanda_theme
 
 # Inherit directly from gr.themes.Soft to get its fonts and base styles
 class QandATheme(Soft):
