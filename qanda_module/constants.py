@@ -4,14 +4,14 @@ Constants and configuration data for the Q&A UI system.
 
 # Popular topics for general exploration (always visible)
 POPULAR_TOPICS = [
-    "Political Commentary", "Climate Change", "Economy", "Healthcare", "Education", "Housing", 
+    "Climate Change", "Economy", "Healthcare", "Education", "Housing", 
     "Immigration", "Energy", "Defence", "Employment", "Tax", 
     "Environment", "Trade"
 ]
 
 # Complete list of substantive topics for semantic matching
 ALL_SUBSTANTIVE_TOPICS = [
-    "Political Commentary", "Climate Change", "Economy", "Healthcare", "Education", "Housing", "Immigration", 
+    "Climate Change", "Economy", "Healthcare", "Education", "Housing", "Immigration", 
     "Energy", "Defence", "Transport", "Tax", "Welfare", "Mining", "Agriculture",
     "Technology", "Media", "Arts", "Indigenous", "Mental Health", "Aged Care",
     "Childcare", "Employment", "Industrial Relations", "Trade", "Foreign Policy",

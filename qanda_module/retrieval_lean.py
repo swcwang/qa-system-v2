@@ -43,31 +43,26 @@ def generate_ai_response(docs, query: str, style: str, config) -> str:
     """Generate AI response with episode citations and style-based length."""
     # Build context
     context_text = "\n\n".join(doc.page_content for doc in docs)
-    
     # Style-specific instructions
     style_instructions = {
-        "concise": "Provide a concise response (150-250 words) focusing on key points only.",
-        "standard": "Provide a response (300-500 words) with moderate detail and analysis.", 
-        "detailed": "Provide a detailed response (600-1000 words) with comprehensive analysis and multiple perspectives."
+        "concise": "Provide a concise response (up to 150 words) focusing on key points only.",
+        "standard": "Provide a response (150-300 words) with moderate detail and analysis.", 
+        "detailed": "Provide a detailed response (300-1000 words) with comprehensive analysis and multiple perspectives."
     }
-    
     length_instruction = style_instructions.get(style.lower(), style_instructions["standard"])
-    
     prompt = f"""Please answer this question based on the context provided.
+    FORMATTING: Use markdown formatting with:
+    - ## Main headings for key sections
+    - **Bold text** for panelist names and key points
+    - > Quote blocks for direct quotes from panelists
 
-IMPORTANT: When referencing information, add episode citations at the end of each paragraph using the format "Episode ID: XXX" where XXX is the episode number from the context.
-
-Example: "Climate action remains a contentious issue with various approaches proposed. Episode ID: 615 Episode ID: 422"
-
-{length_instruction}
-
-Structure your response with clear points and include specific quotes where relevant.
-
-Context: {context_text}
-
-Question: {query}
-
-Response:"""
+    IMPORTANT: When referencing information, add episode citations at the end of each paragraph using the format "Episode ID: XXX" where XXX is the episode number from the context.
+    Example: "Climate action remains a contentious issue with various approaches proposed. Episode ID: 615 Episode ID: 422"
+    {length_instruction}
+    Structure your response with clear sections, use headings to organize main points, and include specific quotes in quote blocks where relevant.
+    Context: {context_text}
+    Question: {query}
+    Response:"""
     
     # Rest of function unchanged...
     

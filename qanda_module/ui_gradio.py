@@ -46,14 +46,24 @@ def get_logo_base64():
     except Exception as e:
         print(f"Logo loading error: {e}")
         return None
-
+    
+def get_background_image_base64():
+    """Convert background image to base64."""
+    try:
+        with open("./panel_bk.png", "rb") as f:  # adjust filename
+            img_data = f.read()
+            return base64.b64encode(img_data).decode('utf-8')
+    except Exception as e:
+        print(f"Background image loading error: {e}")
+        return None
+    
 def get_gradio_theme(theme_name: str):
     """Get Gradio theme by name"""
     themes = {
         "soft": gr.themes.Soft(),
         "default": gr.themes.Default(),
-        "modern": modern_theme,  # Your custom theme
-        "burgundy_gold": burgundy_gold_theme,  # Your custom theme
+        "modern": modern_theme,  
+        "burgundy_gold": burgundy_gold_theme,  
     }
     return themes.get(theme_name, gr.themes.Soft())
 
@@ -338,14 +348,18 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
     panelist_lookup = helpers.panelist_lookup
     
     def on_panelist_change(panelist_display, topic):
-        """Handle panelist selection change."""
+        """Handle panelist selection change - FAST version."""
         clean_panelist = extract_panelist_name(panelist_display)
         episodes_text = get_panelist_episodes(helpers, clean_panelist)
         
         if clean_panelist:
-            relevant_topics = get_semantic_topic_matches(helpers, clean_panelist, embedder, limit=16)
-            topic_label_text = f"**{clean_panelist}'s Topics** ({len(relevant_topics)} most relevant)"
-            topic_choices = relevant_topics
+            # FAST: Always use popular topics (no semantic matching)
+            topic_label_text = f"**Popular Topics**"
+            topic_choices = POPULAR_TOPICS
+            
+            # Show semantic button for this panelist
+            semantic_btn_visible = True
+            semantic_btn_text = f"🧠 Show {clean_panelist}'s Topics"
             
             # Extract latest date from existing episode data
             try:
@@ -373,11 +387,12 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
                     else:
                         temp_lookup = {clean_panelist: ("Panelist", None, latest_date)}
             except Exception as e:
-                print(f"Error getting latest date: {e}")
                 temp_lookup = panelist_lookup
         else:
             topic_label_text = "**Popular Topics**"
             topic_choices = POPULAR_TOPICS
+            semantic_btn_visible = False
+            semantic_btn_text = "🧠 Show Personalized Topics"
             temp_lookup = panelist_lookup
         
         # Use temp_lookup for this specific selection
@@ -388,12 +403,28 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
             episodes_text,                                     # episodes_display (Textbox)  
             topic_label_text,                                  # topic_label (Markdown)
             gr.update(choices=topic_choices, value=None),      # topic_radio (Radio)
+            gr.update(visible=semantic_btn_visible, value=semantic_btn_text),  # semantic_btn (Button)
             selection_results[0],                              # current_selection (Markdown)
             selection_results[1],                              # sample_questions (Radio) 
             selection_results[2],                              # question (Textbox)
             selection_results[3]                               # status_display (Textbox)
         )
-    
+
+    def on_semantic_click(panelist):
+        """SLOW but smart - only runs when user clicks button."""
+        if not panelist:
+            return gr.update(), gr.update(), gr.update()
+        
+        # NOW do the heavy computation
+        relevant_topics = get_semantic_topic_matches(helpers, panelist, embedder)
+        topic_label_text = f"**{panelist}'s Topics** ({len(relevant_topics)} most relevant)"
+        
+        return (
+            topic_label_text,                                  # topic_label
+            gr.update(choices=relevant_topics, value=None),    # topic_radio
+            gr.update(visible=False)                           # hide button after use
+        )
+                
     def on_topic_click(topic_name, panelist):
         """Handle topic selection."""
         return (topic_name,) + update_selections(panelist, topic_name, panelist_lookup)
@@ -416,34 +447,25 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
         return ""
         
     def ask_question(q, k, s):
-        """Process question with error handling."""
         if not q.strip():
             return "**Please enter a question**", "", "⚠️ No question provided", gr.update()
         
-        print(f"🔍 Processing question: {q}")
-        print(f"🔍 Parameters: k={k}, style={s}")
-        
         try:
+            # Update status immediately, then process
+            gr.Info("🔄 Processing your question...")  # This shows immediately
             result = handle_question(q, k, s, helpers, qa_chain, config)
-            print(f"✅ Question processed successfully")
-            return result[0], result[1], result[2], gr.update(selected=2)
-            
+            return result[0], result[1], gr.update(selected=2)
         except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"❌ Error in ask_question: {str(e)}")
-            print(f"❌ Full traceback:\\n{error_details}")
-            
             return f"Error: {str(e)}", "", f"❌ Error: {str(e)}", gr.update()
     
     return {
         'on_panelist_change': on_panelist_change,
+        'on_semantic_click': on_semantic_click,  # ← ADDED THIS
         'on_topic_click': on_topic_click,
         'clear_all': clear_all,
         'clear_question_only': clear_question_only,
         'ask_question': ask_question
     }
-
 
 def wire_ui_events(components: dict, handlers: dict):
     """
@@ -457,6 +479,7 @@ def wire_ui_events(components: dict, handlers: dict):
     panelist_dropdown = components['panelist_dropdown']
     topic_radio = components['topic_radio']
     topic_label = components['topic_label']
+    semantic_btn = components['semantic_btn']  
     sample_questions = components['sample_questions']
     question = components['question']
     ask_btn = components['ask_btn']
@@ -466,7 +489,7 @@ def wire_ui_events(components: dict, handlers: dict):
     current_panelist = components['current_panelist']
     current_topic = components['current_topic']
     current_selection = components['current_selection']
-    status_display = components['status_display']
+    #status_display = components['status_display']
     answer_display = components['answer_display']
     sources_display = components['sources_display']
     tabs = components['tabs']
@@ -479,13 +502,19 @@ def wire_ui_events(components: dict, handlers: dict):
         fn=handlers['on_panelist_change'],
         inputs=[panelist_dropdown, current_topic],
         outputs=[current_panelist, episodes_display, topic_label, topic_radio, 
-                current_selection, sample_questions, question, status_display]
+                semantic_btn, current_selection, sample_questions, question]
     )
-    
+
+    semantic_btn.click(
+        fn=handlers['on_semantic_click'],
+        inputs=[current_panelist],
+        outputs=[topic_label, topic_radio, semantic_btn]
+    )
+
     topic_radio.change(
         fn=handlers['on_topic_click'],
         inputs=[topic_radio, current_panelist],
-        outputs=[current_topic, current_selection, sample_questions, question, status_display]
+        outputs=[current_topic, current_selection, sample_questions, question]
     )
     
     sample_questions.change(
@@ -502,13 +531,13 @@ def wire_ui_events(components: dict, handlers: dict):
     clear_btn.click(
         handlers['clear_all'], 
         outputs=[current_panelist, episodes_display, current_topic, current_selection, 
-                topic_radio, sample_questions, question, status_display]
+                topic_radio, sample_questions, question]
     )
     
     ask_btn.click(
         handlers['ask_question'], 
         [question, k_slider, style_radio], 
-        [answer_display, sources_display, status_display, tabs]
+        [answer_display, sources_display, tabs]
     )
     
     back_btn.click(lambda: gr.update(selected=1), outputs=[tabs])  
@@ -532,11 +561,59 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
     # Get panelist data
     panelist_names = enhanced_build_panelist_list(helpers)
     
+    bg_b64 = get_background_image_base64()
+    print(f"Background image loaded: {bg_b64 is not None}")
+
+    background_css = ""
+    if bg_b64:
+        background_css = f"""
+        /* Header background on all pages */
+        .gradio-container > div:first-child {{
+            background: linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)),
+                        url('data:image/jpeg;base64,{bg_b64}') !important;
+            background-size: cover !important;
+            background-repeat: no-repeat !important;
+            background-position: center top !important;
+            min-height: 200px;
+        }}
+
+        /* Full background only on Response tab */
+        .tab-nav button[aria-selected="true"][id*="Response"] ~ .tabitem {{
+            background: linear-gradient(rgba(255,255,255,0.93), rgba(255,255,255,0.93)),
+                        url('data:image/jpeg;base64,{bg_b64}') !important;
+            background-size: cover !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+        }}
+        #clear-btn-inside {{
+            position: absolute !important;
+            top: 8px !important;
+            right: 8px !important;
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            padding: 0 !important;
+            font-size: 14px !important;
+            opacity: 0.6 !important;
+            z-index: 10 !important;
+            border-radius: 50% !important;
+            border: 1px solid #ccc !important;
+        }}
+        .horizontal-radio .gr-radio-group {{
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 10px !important;
+        }}
+        .horizontal-radio .gr-radio-group label {{
+            margin-right: 15px !important;
+        }}
+        """
+
     with gr.Blocks(
         title="Q+A Voices: A Nation in Question", 
         #theme=modern_theme,
         theme=get_gradio_theme(config.ui_theme),
-        css=None
+        css=background_css  
     ) as demo:
         logo_b64 = get_logo_base64()
 
@@ -652,19 +729,24 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
                             topic_radio = gr.Radio(
                                 choices=POPULAR_TOPICS,
                                 interactive=True,
-                                label="",
-                                elem_classes=["topic-radio"]
+                                label=""
+                            )
+                            # NEW: Optional semantic button
+                            semantic_btn = gr.Button(
+                                "🧠 Show Personalized Topics", 
+                                visible=False,  # Hidden until panelist selected
+                                variant="secondary",
+                                size="sm"
                             )
                         
                         with gr.Row():
                             k_slider = gr.Slider(5, 150, 80, step=5, label="Docs")
                             style_radio = gr.Radio(
-                                ["Concise", "Standard", "Detailed"], 
+                                [("Short", "Concise"), ("Mid", "Standard"), ("Long", "Detailed")], 
                                 value="Standard", 
-                                label="Style"
-                            )
-                            status_display = gr.Textbox("Ready", label="Status", interactive=False)
-                                        
+                                label="Length",  # or "Detail Level"
+                                elem_classes=["horizontal-radio"]
+                            )     
                     # RIGHT COLUMN
                     with gr.Column(scale=65):
                         current_selection = gr.Markdown("**Current Selection:** None")
@@ -689,8 +771,8 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
                         with gr.Row():
                             ask_btn = PrimaryButton("🔍 Ask Question", scale=3)
                             clear_btn = SecondaryButton("🗑️ Clear All", scale=1)
-                        
-                        
+
+                        #tatus_display = gr.Textbox("Ready", label="Status", interactive=False)                        
 
                         gr.Markdown("### 💡 Sample Questions")
                         sample_questions = gr.Radio(
@@ -716,6 +798,7 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
             'panelist_dropdown': panelist_dropdown,
             'topic_radio': topic_radio,
             'topic_label': topic_label,
+            'semantic_btn': semantic_btn, 
             'sample_questions': sample_questions,
             'question': question,
             'ask_btn': ask_btn,
@@ -725,7 +808,7 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
             'current_panelist': current_panelist,
             'current_topic': current_topic,
             'current_selection': current_selection,
-            'status_display': status_display,
+            #'status_display': status_display,
             'answer_display': answer_display,
             'sources_display': sources_display,
             'tabs': tabs,
@@ -758,7 +841,7 @@ def create_current_ui(helpers, qa_chain, config) -> gr.Blocks:
         title="Q&A System V2 - Current UI",
         #theme=modern_theme,
         theme=get_gradio_theme(config.ui_theme),
-        css=None
+        css=background_css
     ) as demo:
         
         gr.Markdown("# 🧠 Q&A System V2 - Current UI")
