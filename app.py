@@ -42,4 +42,4 @@ demo = create_demo()
 
 # Launch for HF Spaces
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch()
