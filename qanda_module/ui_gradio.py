@@ -6,25 +6,59 @@ import gradio as gr
 from typing import List, Tuple, Any, Optional
 from sentence_transformers import SentenceTransformer
 import pandas as pd
+import importlib
+import sys
+import os
+import base64
 from .constants import POPULAR_TOPICS, UI_CSS, LEGACY_UI_CSS
 from .data_processing import (
     extract_panelist_name, get_semantic_topic_matches, 
     prepare_ui_data, enhanced_build_panelist_list
 )
-from .retrieval_lean import process_question_with_style
+# Force reload the specific theme module
+if 'qanda_module.theme_pure' in sys.modules:
+    importlib.reload(sys.modules['qanda_module.theme_pure'])
 
+from .retrieval_lean import process_question_with_style
+#from .theme_earthy import earthy_theme
+#from .theme_retro import retro_theme
+from .theme_modern import modern_theme
+#from .theme_burgundy_pure import burgundy_pure_theme
+#from .theme_forest import forest_green_theme
+#from .theme_burgundy_fixed import burgundy_fixed_theme
+from .theme_burgundy_gold import burgundy_gold_theme
+
+# --- NEW: Helper functions for creating themed buttons ---
+def PrimaryButton(value, **kwargs):
+    """Creates a Gradio Button with the 'primary' variant."""
+    return gr.Button(value, variant="primary", **kwargs)
+
+def SecondaryButton(value, **kwargs):
+    """Creates a Gradio Button with the 'secondary' variant."""
+    return gr.Button(value, variant="secondary", **kwargs)
+
+def get_logo_base64():
+    """Convert logo to base64 for embedding."""
+    try:
+        with open("./logo2.png", "rb") as f:
+            img_data = f.read()
+            return base64.b64encode(img_data).decode('utf-8')
+    except Exception as e:
+        print(f"Logo loading error: {e}")
+        return None
+
+def get_gradio_theme(theme_name: str):
+    """Get Gradio theme by name"""
+    themes = {
+        "soft": gr.themes.Soft(),
+        "default": gr.themes.Default(),
+        "modern": modern_theme,  # Your custom theme
+        "burgundy_gold": burgundy_gold_theme,  # Your custom theme
+    }
+    return themes.get(theme_name, gr.themes.Soft())
 
 def generate_smart_questions(panelist: str = "", topic: str = "") -> List[str]:
-    """
-    Generate context-aware questions based on selections.
-    
-    Args:
-        panelist: Selected panelist name
-        topic: Selected topic
-        
-    Returns:
-        List of suggested questions
-    """
+    """Generate context-aware questions with general questions included."""
     if panelist and topic:
         return [
             f"What are {panelist}'s views on {topic.lower()}?", 
@@ -45,12 +79,24 @@ def generate_smart_questions(panelist: str = "", topic: str = "") -> List[str]:
                 "What are the biggest political divisions in Australia?"
             ]
     elif panelist:
-        return [
+        panelist_questions = [
             f"What are {panelist}'s most notable views?",
             f"Has {panelist} changed their political views over time?",
             f"What are {panelist}'s most controversial positions?",
             f"How did {panelist} handle tough questions?"
         ]
+        
+        general_questions = [
+            "What do panelists think of climate change?",
+            "How do panelists view immigration policy?", 
+            "What are different perspectives on the economy?",
+            "What are the most controversial political debates?",
+            "Which panelists had the most heated exchanges?",
+            "How have political views changed over the years?"
+        ]
+        
+        # Combine: panelist-specific first, then general
+        return panelist_questions + general_questions
     elif topic:
         return [
             f"What do panelists think of {topic.lower()}?",
@@ -128,7 +174,7 @@ def handle_question(question: str, k_value: int, style: str,
     Args:
         question: User's question
         k_value: Number of documents to retrieve
-        style: Response style (Concise/Balanced/Detailed)
+        style: Response style (Concise/Standard/Detailed)
         helpers: QAHelpers object
         qa_chain: QA chain
         config: System configuration
@@ -488,12 +534,32 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
     
     with gr.Blocks(
         title="Q+A Voices: A Nation in Question", 
-        theme=gr.themes.Soft(),
-        css=UI_CSS
+        #theme=modern_theme,
+        theme=get_gradio_theme(config.ui_theme),
+        css=None
     ) as demo:
-        
-        gr.Markdown("# 🧠 **Q+A Voices: A Nation in Question**")
-        
+        logo_b64 = get_logo_base64()
+
+        if logo_b64:
+            logo_html = f"""
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <img src="data:image/png;base64,{logo_b64}" 
+                    style="width: 88px; height: 69px; margin-right: 15px; object-fit: contain;" 
+                    alt="Q+A Voices Logo">
+                <h1 style="margin: 0; font-size: 2em; font-weight: bold;">Q+A Voices: A Nation in Question</h1>
+            </div>
+            """
+        else:
+            # Fallback without logo
+            logo_html = """
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                <div style="width: 88px; height: 69px; background: #722F37; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: #D4AF37; font-weight: bold; font-size: 14px;">Q+A</div>
+                <h1 style="margin: 0; font-size: 2em; font-weight: bold;">Q+A Voices: A Nation in Question</h1>
+            </div>
+            """
+        gr.HTML(logo_html)
+        #gr.Markdown("# 🧠 **Q+A Voices: A Nation in Question**")
+ 
         with gr.Tabs() as tabs:
             with gr.Tab("👋 Welcome", id=0):
                 with gr.Column():
@@ -501,13 +567,15 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
                     gr.HTML('<div style="max-width: 750px; margin: 0 auto;">')
                     
                     # Simple, clean hero - no banner
-                    gr.Markdown("## Ever wondered what Australia was really talking about?")
-                    
+                    #gr.Markdown("## What have Australians been debating for the past decade?")
+                    gr.HTML('<h2 style="text-align: center;">What have Australians been debating for the past decade?</h2>')
                     # Compact timeline integrated into content
                     create_episode_scroller(helpers)
                     # Main content - tighter spacing
                     gr.Markdown("""
-            Q+A Voices is your portal to over ten years of <a href="https://www.abc.net.au/qanda" target="_blank">ABC's Q+A</a> program transcripts. It's a place to explore the nation's questions, debates, and evolving perspectives, all through a uniquely Australian lens.
+            Q+A Voices draws from over ten years of <a href="https://www.abc.net.au/qanda" target="_blank">ABC's Q+A</a> program transcripts. For those unfamiliar, Q+A brings together politicians, public figures, and community members each week for unscripted political discussion. The format encourages genuine, in-depth responses and often leads to revealing moments of candour and passionate debate. 
+                                
+            This archive captures those exchanges - the spontaneous answers, the challenging follow-ups, and the diverse perspectives that emerge when Australians grapple with the issues that matter.
 
             **Now, with AI, we can explore it all.**
 
@@ -543,7 +611,7 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
                     
                     # Call to action - reduced spacing
                     gr.HTML('<div style="margin: 25px 0 10px 0;">')
-                    start_exploring_btn = gr.Button("🚀 Begin Your Exploration", variant="primary", size="lg")
+                    start_exploring_btn = PrimaryButton("🚀 Begin Your Exploration", size="lg")
                     gr.HTML('</div>')
                     
                     gr.HTML('</div>')  # Close width constraint
@@ -591,42 +659,45 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
                         with gr.Row():
                             k_slider = gr.Slider(5, 150, 80, step=5, label="Docs")
                             style_radio = gr.Radio(
-                                ["Concise", "Balanced", "Detailed"], 
-                                value="Balanced", 
+                                ["Concise", "Standard", "Detailed"], 
+                                value="Standard", 
                                 label="Style"
                             )
+                            status_display = gr.Textbox("Ready", label="Status", interactive=False)
                                         
                     # RIGHT COLUMN
                     with gr.Column(scale=65):
                         current_selection = gr.Markdown("**Current Selection:** None")
+                        gr.Markdown("### 🚀 Your Question")
+                        gr.Markdown("*Ask anything about Australian politics - from economy to immigration, from party leaders to policy debates.*")
+
+                        with gr.Row():
+                            with gr.Column(scale=1, elem_id="question-container"):
+                                question = gr.Textbox(
+                                    "",
+                                    placeholder="Say something...",
+                                    lines=4,
+                                    label="",  # ← Remove the label completely
+                                    elem_id="question-input"
+                                )
+                                clear_question_btn = SecondaryButton(
+                                    "✕",
+                                    size="sm",
+                                    elem_id="clear-btn-inside"
+                                )
+                                                
+                        with gr.Row():
+                            ask_btn = PrimaryButton("🔍 Ask Question", scale=3)
+                            clear_btn = SecondaryButton("🗑️ Clear All", scale=1)
+                        
+                        
+
                         gr.Markdown("### 💡 Sample Questions")
                         sample_questions = gr.Radio(
                             choices=generate_smart_questions(), 
                             interactive=True, 
                             label=""
                         )
-
-                        gr.Markdown("### 📝 Your Question")
-                        with gr.Row():
-                            with gr.Column(scale=1, elem_id="question-container"):
-                                question = gr.Textbox(
-                                    "", 
-                                    placeholder="Enter your question...", 
-                                    lines=4, 
-                                    label=""
-                                )
-                                clear_question_btn = gr.Button(
-                                    "✕", 
-                                    variant="secondary", 
-                                    size="sm", 
-                                    elem_id="clear-btn-inside"
-                                )
-                        
-                        with gr.Row():
-                            ask_btn = gr.Button("🔍 Ask Question", variant="primary", scale=3)
-                            clear_btn = gr.Button("🗑️ Clear All", variant="secondary", scale=1)
-                        
-                        status_display = gr.Textbox("Ready", label="Status", interactive=False)
                         
             # Response Tab
             with gr.Tab("📝 Response", id=2):
@@ -634,7 +705,7 @@ def create_semantic_ui(helpers, qa_chain, config) -> gr.Blocks:
                 answer_display = gr.Markdown("**Click 'Ask Question' to see response**")
                 gr.Markdown("### 📚 Sources")
                 sources_display = gr.Markdown("*Sources will appear here*")
-                back_btn = gr.Button("← Back", variant="secondary")
+                back_btn = SecondaryButton("← Back")
         
         # State management
         current_panelist = gr.State("")
@@ -685,8 +756,9 @@ def create_current_ui(helpers, qa_chain, config) -> gr.Blocks:
     """
     with gr.Blocks(
         title="Q&A System V2 - Current UI",
-        theme=gr.themes.Soft(),
-        css=LEGACY_UI_CSS
+        #theme=modern_theme,
+        theme=get_gradio_theme(config.ui_theme),
+        css=None
     ) as demo:
         
         gr.Markdown("# 🧠 Q&A System V2 - Current UI")
@@ -739,14 +811,13 @@ def create_current_ui(helpers, qa_chain, config) -> gr.Blocks:
                 with gr.Row():
                     with gr.Column(scale=1, elem_id="question-container"):
                         question = gr.Textbox(
-                            label="Your Question",
+                            label="",
                             placeholder="e.g., What did panelists say about climate change?",
-                            lines=3,
+                            lines=4,
                             elem_id="question-input"
                         )
-                        clear_question_btn = gr.Button(
+                        clear_question_btn = SecondaryButton(
                             "✕", 
-                            variant="secondary", 
                             size="sm",
                             elem_id="clear-btn-inside"
                         )
@@ -763,18 +834,17 @@ def create_current_ui(helpers, qa_chain, config) -> gr.Blocks:
                     
                     style_radio = gr.Radio(
                         label="Response Style",
-                        choices=["Concise", "Balanced", "Detailed"],
-                        value="Balanced"
+                        choices=["Concise", "Standard", "Detailed"],
+                        value="Standard"
                     )
                 
                 # Buttons
                 with gr.Row():
-                    submit_btn = gr.Button(
+                    submit_btn = PrimaryButton(
                         "🔍 Ask Question", 
-                        variant="primary",
                         interactive=False
                     )   
-                    clear_btn = gr.Button("🗑️ Clear", variant="secondary")
+                    clear_btn = SecondaryButton("🗑️ Clear")
             
             with gr.Column(scale=1):
                 # Status
