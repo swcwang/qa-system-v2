@@ -21,4 +21,6 @@ duck_db_name: "./data/qanda_june11_clean.duckdb"
 input_json_path: "./data/input_json2"
 
 # Debug mode
-debug_enabled: true
+debug_enabled: false
+# Logging settings
+log_file_name: "qa_usage_log.csv"

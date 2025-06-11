@@ -15,6 +15,9 @@ from .data_processing import (
     extract_panelist_name, get_semantic_topic_matches, 
     prepare_ui_data, enhanced_build_panelist_list
 )
+import csv
+from datetime import datetime
+
 # Force reload the specific theme module
 if 'qanda_module.theme_pure' in sys.modules:
     importlib.reload(sys.modules['qanda_module.theme_pure'])
@@ -36,6 +39,23 @@ def PrimaryButton(value, **kwargs):
 def SecondaryButton(value, **kwargs):
     """Creates a Gradio Button with the 'secondary' variant."""
     return gr.Button(value, variant="secondary", **kwargs)
+
+def log_qa(question, style, chunks, answer, config):
+    import os
+    
+    file_exists = os.path.exists(config.log_file_name)
+    
+    with open("qa_usage_log.csv", "a", newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        
+        # Write header if file is new
+        if not file_exists:
+            writer.writerow(['date', 'question', 'style', 'number_chunks', 'answer'])
+        
+        writer.writerow([
+            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            question, style, chunks, answer.replace('\n', ' ')  # Clean newlines for CSV
+        ])
 
 def get_logo_base64():
     """Convert logo to base64 for embedding."""
@@ -454,9 +474,11 @@ def create_event_handlers(helpers, qa_chain, config, embedder):
             # Update status immediately, then process
             gr.Info("🔄 Processing your question...")  # This shows immediately
             result = handle_question(q, k, s, helpers, qa_chain, config)
+            # Log the Q&A
+            log_qa(q, s, k, result[0], config)
             return result[0], result[1], gr.update(selected=2)
         except Exception as e:
-            return f"Error: {str(e)}", "", f"❌ Error: {str(e)}", gr.update()
+            return f"Error: {str(e)}", "",  gr.update()
     
     return {
         'on_panelist_change': on_panelist_change,

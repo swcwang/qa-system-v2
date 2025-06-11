@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QAConfig:
     """Simple configuration class."""
+    log_file_name: str = "qa_usage_log.csv"
     
     ui_theme: str = "soft"
     # Vector store
