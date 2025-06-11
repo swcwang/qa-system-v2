@@ -20,6 +20,9 @@ from langchain.prompts import PromptTemplate
 from pydantic import Field
 import logging
 
+# ADDED: Import V3 parser
+from .v3_parser import enhance_document_metadata
+
 """
 Placeholder for legacy imports - you'll need to copy these from your old project.
 """
@@ -95,14 +98,15 @@ class ChromaManualRetriever(BaseRetriever):
             n_results=self.k,
             include=["documents", "metadatas"],
         )
-        # NEW: Add episode ID prefixes to content
+        
+        # MODIFIED: V3 parser integration instead of episode ID prefixes
         enhanced_docs = []
         for text, meta in zip(results["documents"][0], results["metadatas"][0]):
-            if "episode_title" in meta and "title" not in meta:
-                meta["title"] = meta["episode_title"]             
-            episode_id = meta.get('episode_id', 'Unknown')
-            prefixed_content = f"[Episode ID: {episode_id}] {text}"
-            enhanced_docs.append(Document(page_content=prefixed_content, metadata=meta))
+            doc = Document(page_content=text, metadata=meta)            
+            #print(f"🔍 PARSER DEBUG - Before: {doc.page_content[:100]}")
+            enhance_document_metadata(doc, meta)
+            #print(f"🔍 PARSER DEBUG - After: {doc.page_content[:100]}")
+            enhanced_docs.append(doc)
         
         return enhanced_docs
 
@@ -146,18 +150,12 @@ class ImprovedQAHelpers:
                         'original': name.strip(),
                         'url': url
                     }
-            
 
             print(f"Loaded {len(self.name_to_url)} panelist profile URLs")
         else:
             print(
                 "Warning: 'link' column not found in df_guests - panelist URLs will not be available"
             )
-
-        # # Panellist URLs
-        # self.name_to_url = {}
-        # if "link" in self.df_guests.columns:
-        #     self.name_to_url = dict(zip(self.df_guests["name"], self.df_guests["link"]))
 
         # Print some stats about the data
         panellist_count = self.df_reply[self.df_reply["speaker_type"] == 3].shape[0]
@@ -185,12 +183,9 @@ class ImprovedQAHelpers:
         """Helper to get episode ID from label."""
         return self.episode_lookup.get(ep_label)
 
-
-
     def get_panellists_by_episode(self, ep_label):
         """Get list of panellists for an episode, focusing on speaker_type=3 with valid IDs."""
-        print(f"DEBUG: get_panellists_by_episode called with ep_label={ep_label}")
-
+        # REMOVED: Debug print
         if not ep_label:
             return []
 
@@ -212,7 +207,7 @@ class ImprovedQAHelpers:
 
     def get_subtopics_by_episode(self, ep_label):
         """Get list of subtopics for an episode, from all speaker types."""
-        print(f"DEBUG: get_subtopics_by_episode called with ep_label={ep_label}")
+        # REMOVED: Debug print
         if not ep_label:
             return []
 
@@ -235,19 +230,13 @@ class ImprovedQAHelpers:
 
     def get_subtopics_by_panellist(self, ep_label, panellist_name):
         """Get list of subtopics for a panellist in an episode using direct matching."""
-        print(
-            f"DEBUG: get_subtopics_by_panellist: ep={ep_label}, panellist={panellist_name}"
-        )
-        print(f"🔍 Panelist: {panellist_name}", end="")
-
+        # REMOVED: Debug prints
         if not ep_label or panellist_name is None:
-            print(" → Subtopics: []")
             return []
 
         # Get the episode ID
         ep_id = self.get_episode_id(ep_label)
         if ep_id is None:
-            print(" → Subtopics: []")
             return []
 
         # Filter for this panellist's responses in this episode using speaker_name
@@ -260,22 +249,17 @@ class ImprovedQAHelpers:
         topics = df_filtered["subtopic"].dropna().unique().tolist()
         # Filter out empty strings
         topics = [topic for topic in topics if topic]
-        print(f" → Subtopics: {topics}")
         return sorted(topics)
 
     def get_panellists_by_subtopic(self, ep_label, subtopic):
         """Get list of panellists for a subtopic in an episode, filtering for speaker_type=3."""
-        print(f"DEBUG: get_panellists_by_subtopic: ep={ep_label}, subtopic={subtopic}")
-        print(f"🔍 Subtopic: {subtopic}", end="")
-
+        # REMOVED: Debug prints
         if not ep_label or subtopic is None:
-            print(" → Panellists: []")
             return []
 
         # Get the episode ID
         ep_id = self.get_episode_id(ep_label)
         if ep_id is None:
-            print(" → Panellists: []")
             return []
 
         # Filter for panellists discussing this subtopic
@@ -287,21 +271,30 @@ class ImprovedQAHelpers:
 
         # Get panellist names directly from the filtered data
         panellists = df_filtered["speaker_name"].dropna().unique().tolist()
-        print(f" → Panellists: {panellists}")
         return sorted(panellists)
 
     def format_response_with_links(self, full_answer, docs):
         """
-        Format response with hyperlinks and numbered citations.
+        Format response with hyperlinks and numbered citations - V3 COMPATIBLE.
         Combines sophisticated panelist linking with numbered episode citations.
         """
         import re
         
         # ========================
-        # STAGE 1: NUMBERED CITATIONS
+        # STAGE 1: NUMBERED CITATIONS (V3 COMPATIBLE)
         # ========================
-        # Extract episode IDs and create sequential mapping
-        episode_ids = re.findall(r'Episode ID: (\d+)', full_answer)
+        # Extract episode IDs from both old and new formats
+        episode_ids = []
+        
+        # V3 format: "Ep 615" -> extract 615
+        v3_episodes = re.findall(r'\bEp (\d+)\b', full_answer)
+        episode_ids.extend(v3_episodes)
+        
+        # Legacy format: "Episode ID: 615" -> extract 615  
+        legacy_episodes = re.findall(r'Episode ID: (\d+)', full_answer)
+        episode_ids.extend(legacy_episodes)
+        
+        # Create sequential mapping
         episode_to_ref = {}
         unique_episodes = []
         
@@ -311,30 +304,34 @@ class ImprovedQAHelpers:
                 episode_to_ref[episode_id] = ref_num
                 unique_episodes.append(episode_id)
         
-        # Replace episode IDs with numbered superscript citations
+        # Replace episode citations with numbered superscript citations
         for episode_id in episode_ids:
             if episode_id in episode_to_ref:
-                pattern = f"Episode ID: {episode_id}"
                 ref_num = episode_to_ref[episode_id]
                 replacement = f'<sup>[{ref_num}]</sup>'
-                full_answer = full_answer.replace(pattern, replacement, 1)
+                
+                # Replace V3 format: "Ep 615" -> "<sup>[1]</sup>"
+                pattern_v3 = f"Ep {episode_id}"
+                full_answer = full_answer.replace(pattern_v3, replacement, 1)
+                
+                # Replace legacy format: "Episode ID: 615" -> "<sup>[1]</sup>"
+                pattern_legacy = f"Episode ID: {episode_id}"
+                full_answer = full_answer.replace(pattern_legacy, replacement, 1)
         
         # Remove any remaining "Sources Used:" sections from AI
         full_answer = re.sub(r'\*\*Sources Used:\*\*.*$', '', full_answer, flags=re.DOTALL).strip()
         
         # ========================
-        # STAGE 2: PANELIST LINKING 
+        # STAGE 2: PANELIST LINKING (V3 COMPATIBLE)
         # ========================
         # Collect all unique speakers in the results
         speakers_in_results = {}
         for doc in docs:
-            speaker_name = doc.metadata.get("speaker_name")
+            # V3 compatible metadata access
+            speaker_name = doc.metadata.get("speaker_name") or doc.metadata.get("spk")
             if speaker_name:
                 normalized = speaker_name.title()
                 speakers_in_results[normalized] = speaker_name
-
-        print(f"Speakers found in results: {speakers_in_results}")
-        print(f"Total panelist URLs available: {len(self.name_to_url)}")
 
         # Track what we've already linked
         already_linked = set()
@@ -350,8 +347,6 @@ class ImprovedQAHelpers:
                 info = self.name_to_url[upper_speaker]
                 original_name = info['original']
                 profile_url = info['url']
-
-                print(f"Found URL for {original_speaker} via {original_name}: {profile_url}")
 
                 # Try multiple patterns to match how the AI might format names
                 patterns_to_try = [
@@ -392,36 +387,42 @@ class ImprovedQAHelpers:
                             count=1,  # Only replace first occurrence
                             flags=re.IGNORECASE | re.MULTILINE,
                         )
-                        print(f"  → Replaced {normalized_speaker} using pattern: {pattern[:30]}...")
                         replacement_made = True
                         already_linked.add(normalized_speaker.upper())
                         break
 
-                if not replacement_made:
-                    print(f"  → WARNING: Could not find {normalized_speaker} in text with any pattern")
-            else:
-                print(f"No URL found for {original_speaker}")
-
         # ========================
-        # STAGE 3: EPISODE SOURCES
+        # STAGE 3: EPISODE SOURCES (V3 COMPATIBLE)
         # ========================
-        # Use smart filtering to show only relevant episodes
-        episodes_mentioned = identify_relevant_episodes(full_answer, docs)
-
         # Build numbered source list matching the citations
         episode_links = []
         
         if unique_episodes and episode_to_ref:
-            # Create episode details lookup from docs
+            print(f"🔍 unique_episodes from AI: {unique_episodes}")
+            print(f"🔍 episode_to_ref mapping: {episode_to_ref}")
+            print(f"🔍 Total docs to check: {len(docs)}")
+            
             episode_details = {}
-            for doc in docs:
-                eid = doc.metadata.get('episode_id', '')
-                if str(eid) in unique_episodes:
-                    # Handle both old and new metadata field names
-                    title = doc.metadata.get("episode_title") or doc.metadata.get("title", "")
-                    date = doc.metadata.get("episode_date", "")
-                    if title:
-                        episode_details[str(eid)] = {'title': title, 'date': date}
+            for i, doc in enumerate(docs):
+                eid_v1 = doc.metadata.get('episode_id')
+                eid_v2 = doc.metadata.get('eid')
+                eid = eid_v1 or eid_v2
+                
+                #(f"🔍 Doc {i}: episode_id={eid_v1}, eid={eid_v2}, final eid={eid}")
+                
+                    #print(f"✅ Match found! Doc {i} matches episode {eid}")
+                    # Build episode details (add this part):
+                title = (doc.metadata.get("episode_title") or 
+                        doc.metadata.get("title") or 
+                        doc.metadata.get("ttl", ""))
+                date = doc.metadata.get("episode_date") or doc.metadata.get("dt", "")
+                if title:
+                    episode_details[str(eid)] = {'title': title, 'date': date}
+
+            
+            #print(f"🔍 Final episode_details: {episode_details}")
+            
+            # Remove the duplicate loop that starts with "episode_details = {}"
             
             # Build numbered source links matching citation order
             for episode_id in unique_episodes:
@@ -438,6 +439,7 @@ class ImprovedQAHelpers:
                         episode_links.append(f"{ref_num}. {date}: {title}")
         else:
             # Fallback: use smart episode filtering for non-cited episodes
+            episodes_mentioned = identify_relevant_episodes(full_answer, docs)
             for episode_info in episodes_mentioned:
                 title = episode_info["title"]
                 date = episode_info["date"]
@@ -450,7 +452,7 @@ class ImprovedQAHelpers:
         # Format sources for display
         source_md = "<br>".join(episode_links) if episode_links else ""
 
-        return full_answer, source_md    
+        return full_answer, source_md
 
 def identify_relevant_episodes(full_answer, docs):
     """Identify which episodes were actually referenced in the answer."""
@@ -459,14 +461,15 @@ def identify_relevant_episodes(full_answer, docs):
     # Get all episodes from docs
     all_episodes = {}
     for doc in docs:
-        title = doc.metadata.get("episode_title") or doc.metadata.get("title", "")
-        date = doc.metadata.get("episode_date", "")
-        speaker = doc.metadata.get("speaker_name", "")
+        # MODIFIED: V3 compatible metadata access
+        title = doc.metadata.get("title") or doc.metadata.get("episode_title") or doc.metadata.get("ttl")
+        date = doc.metadata.get("episode_date") or doc.metadata.get("dt")
+        speaker = doc.metadata.get("speaker_name") or doc.metadata.get("spk")
         
         if title and title not in all_episodes:
             all_episodes[title] = {
                 "title": title,
-                "date": date,
+                "date": date or "",
                 "speakers": set()
             }
         if speaker:

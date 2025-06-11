@@ -3,8 +3,8 @@ ui_theme: "burgundy_gold" # "soft", "modern"
 
 # Vector store settings
 embedding_model_name: "BAAI/bge-small-en-v1.5"
-chroma_path: "./data/chroma_db_mid_june9"
-collection_name: "qa_optimized"
+chroma_path: "./data/chroma_db_june11_clean"
+collection_name: "qa_v3_enhanced"
 n_chunks_to_retrieve_k: 80
 
 # AI model settings  
@@ -17,7 +17,7 @@ min_panelist_length: 20
 max_results: 15
 
 # Data paths
-duck_db_name: "./data/qanda_mid_june9.duckdb"
+duck_db_name: "./data/qanda_june11_clean.duckdb"
 input_json_path: "./data/input_json2"
 
 # Debug mode
