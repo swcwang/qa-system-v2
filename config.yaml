@@ -1,0 +1,24 @@
+# config.yaml - Q&A System Configuration
+ui_theme: "burgundy_gold" # "soft", "modern"
+
+# Vector store settings
+embedding_model_name: "BAAI/bge-small-en-v1.5"
+chroma_path: "./data/chroma_db_june11_clean"
+collection_name: "qa_v3_enhanced"
+n_chunks_to_retrieve_k: 80
+
+# AI model settings  
+chat_model_name: "gpt-4o-mini"
+temperature: 0.3
+
+# Enhancement settings
+min_host_length: 50
+min_panelist_length: 20
+max_results: 15
+
+# Data paths
+duck_db_name: "./data/qanda_june11_clean.duckdb"
+input_json_path: "./data/input_json2"
+
+# Debug mode
+debug_enabled: true

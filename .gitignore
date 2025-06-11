@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Data files
+data/
+*.duckdb
+*.db
+
+# Jupyter & Development
+.ipynb_checkpoints/
+
+# Development files
+temp.py
+uv.lock
+.python-version
+
+# Model cache
+.cache/
+sentence_transformers/
+
+# IDE
+.vscode/
+.cursor/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# PyTorch/ML
+*.pt
+*.pth
+*.ckpt
+
+.gradio/
+
+# Deploy branch restrictions
+*.ipynb
+notebooks/
+test_app.py
+requirements_backup.txt
+main.py
+tests/
+# Gradio runtime files
+.gradio/
+# Don't track the active .gitignore (it's just a copy of templates)
+
+# Don't track the working .gitignore file
